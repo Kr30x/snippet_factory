@@ -1,37 +1,51 @@
 'use client';
 import { Highlight, themes } from 'prism-react-renderer';
+import { cn } from '@/lib/utils';
+import { useTheme } from 'next-themes';
 
 interface CodeBlockProps {
   code: string;
   isExpanded?: boolean;
-  maxHeight?: string;
+  language?: string;
 }
 
-export function CodeBlock({ code, isExpanded = true, maxHeight = "400px" }: CodeBlockProps) {
+export function CodeBlock({ code, isExpanded = false, language = 'json' }: CodeBlockProps) {
+  const { theme } = useTheme();
+
   return (
-    <Highlight
-      theme={themes.nightOwl}
-      code={code}
-      language="json"
-    >
-      {({ className, style, tokens, getLineProps, getTokenProps }) => (
-        <pre
-          className={className + " overflow-auto p-4 rounded-lg text-sm"}
-          style={{
-            ...style,
-            maxHeight: !isExpanded ? maxHeight : undefined,
-          }}
-        >
-          {tokens.map((line, i) => (
-            <div key={i} {...getLineProps({ line })}>
-              <span className="select-none opacity-50 mr-4">{i + 1}</span>
-              {line.map((token, key) => (
-                <span key={key} {...getTokenProps({ token })} />
-              ))}
-            </div>
-          ))}
-        </pre>
-      )}
-    </Highlight>
+    <div className={cn(
+      "relative font-mono text-sm overflow-hidden",
+      !isExpanded && "max-h-[400px]"
+    )}>
+      <Highlight
+        theme={theme === 'dark' ? themes.nightOwl : themes.github}
+        code={code}
+        language={language}
+      >
+        {({ className, style, tokens, getLineProps, getTokenProps }) => (
+          <pre
+            className={cn(
+              className,
+              "p-4 overflow-x-auto",
+              theme === 'dark' && language === 'python' && "bg-zinc-950"
+            )}
+            style={style}
+          >
+            {tokens.map((line, i) => (
+              <div key={i} {...getLineProps({ line })} className="table-row">
+                <span className="table-cell text-right pr-4 select-none opacity-50 text-sm">
+                  {i + 1}
+                </span>
+                <span className="table-cell">
+                  {line.map((token, key) => (
+                    <span key={key} {...getTokenProps({ token })} />
+                  ))}
+                </span>
+              </div>
+            ))}
+          </pre>
+        )}
+      </Highlight>
+    </div>
   );
 } 

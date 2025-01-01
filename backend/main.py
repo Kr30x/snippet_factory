@@ -7,6 +7,7 @@ from typing import Dict, Any, get_type_hints, List
 from backend.core.utils import execute_snippet
 import ast
 import inspect
+from pathlib import Path
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -131,4 +132,22 @@ async def list_snippets():
                 "dependencies": dependencies
             })
     
-    return {"snippets": snippets} 
+    return {"snippets": snippets}
+
+@app.get("/api/snippets/{name}/code")
+async def get_snippet_code(name: str):
+    try:
+        # Get the absolute file path using the current file's location
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        snippet_path = os.path.join(current_dir, "snippets", f"{name}.py")
+        
+        if not os.path.exists(snippet_path):
+            raise HTTPException(status_code=404, detail=f"Snippet {name} not found")
+            
+        # Read the file content
+        with open(snippet_path, "r") as f:
+            code = f.read()
+            
+        return {"code": code}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) 

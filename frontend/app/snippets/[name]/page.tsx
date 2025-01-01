@@ -15,6 +15,7 @@ import { CodeBlock } from "@/components/ui/code-block";
 import { MatrixInput } from "@/components/ui/matrix-input";
 import { MatrixDisplay } from "@/components/ui/matrix-display";
 import { Switch } from "@/components/ui/switch";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 interface SnippetDetails {
   name: string;
@@ -77,6 +78,8 @@ export default function SnippetPage() {
   >({});
   const [expandedFields, setExpandedFields] = useState<Record<string, boolean>>({});
   const [isRawExpanded, setIsRawExpanded] = useState(false);
+  const [code, setCode] = useState<string | null>(null);
+  const [isLoadingCode, setIsLoadingCode] = useState(false);
 
   useEffect(() => {
     const fetchSnippetDetails = async () => {
@@ -212,14 +215,33 @@ export default function SnippetPage() {
     }));
   };
 
+  const fetchCode = async () => {
+    try {
+      setIsLoadingCode(true);
+      const response = await fetch(`http://localhost:8000/api/snippets/${params.name}/code`);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || 'Failed to fetch code');
+      }
+      setCode(data.code);
+    } catch (err) {
+      console.error('Error fetching code:', err);
+    } finally {
+      setIsLoadingCode(false);
+    }
+  };
+
   if (!snippet) return <div>Loading...</div>;
 
   return (
     <div className="container mx-auto p-8">
-      <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8">
-        <ArrowLeft className="h-4 w-4" />
-        Back to Snippets
-      </Link>
+      <div className="flex items-center justify-between mb-8">
+        <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" />
+          Back to Snippets
+        </Link>
+        <ThemeToggle />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Input Section */}
@@ -228,86 +250,123 @@ export default function SnippetPage() {
             <CardTitle className="capitalize">{snippet.name.replace(/_/g, ' ')}</CardTitle>
             <CardDescription>{snippet.description}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium">Inputs</h3>
-                <div className="flex gap-2">
-                  {Object.entries(snippet.params).map(([paramName, type]) => (
-                    <Badge
-                      key={`${paramName}-${type}`}
-                      style={{
-                        backgroundColor: stringToColor(type),
-                        color: '#000000',
-                        border: 'none'
-                      }}
-                      className="h-5"
-                    >
-                      {type === 'list[list[float]]' ? '2D Matrix' : type}
-                    </Badge>
+          <CardContent>
+            <Tabs defaultValue="inputs" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="inputs">Inputs</TabsTrigger>
+                <TabsTrigger 
+                  value="code" 
+                  onClick={() => {
+                    if (code === null) {
+                      fetchCode();
+                    }
+                  }}
+                >
+                  Code
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="inputs" className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-medium">Inputs</h3>
+                    <div className="flex gap-2">
+                      {Object.entries(snippet.params).map(([paramName, type]) => (
+                        <Badge
+                          key={`${paramName}-${type}`}
+                          style={{
+                            backgroundColor: stringToColor(type),
+                            color: '#000000',
+                            border: 'none'
+                          }}
+                          className="h-5"
+                        >
+                          {type === 'list[list[float]]' ? '2D Matrix' : type}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  {Object.entries(snippet.params).map(([param, type]) => (
+                    <div key={param} className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <label htmlFor={param} className="text-sm font-medium">
+                          {param}
+                        </label>
+                        <Badge
+                          style={{
+                            backgroundColor: stringToColor(type),
+                            color: '#000000',
+                            border: 'none'
+                          }}
+                          className="h-5"
+                        >
+                          {type.toLowerCase() === 'list[list[float]]' ? '2D Matrix' : type}
+                        </Badge>
+                      </div>
+                      {type.toLowerCase() === 'list[list[float]]' ? (
+                        <MatrixInput
+                          value={JSON.parse(inputs[param] || '[[0,0],[0,0]]')}
+                          onChange={(matrix) => handleInputChange(param, JSON.stringify(matrix))}
+                          allowRectangular={snippet.name === 'add_matrices'}
+                        />
+                      ) : type.toLowerCase() === 'bool' ? (
+                        <Switch
+                          checked={inputs[param] === 'true'}
+                          onCheckedChange={(checked) => handleInputChange(param, String(checked))}
+                        />
+                      ) : (
+                        <Input
+                          id={param}
+                          type={type === 'float' || type === 'int' ? 'number' : 'text'}
+                          value={inputs[param]}
+                          onChange={(e) => handleInputChange(param, e.target.value)}
+                          placeholder={`Enter ${param}`}
+                          step={type === 'float' ? '0.01' : '1'}
+                        />
+                      )}
+                    </div>
                   ))}
                 </div>
-              </div>
-              {Object.entries(snippet.params).map(([param, type]) => (
-                <div key={param} className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <label htmlFor={param} className="text-sm font-medium">
-                      {param}
-                    </label>
-                    <Badge
-                      style={{
-                        backgroundColor: stringToColor(type),
-                        color: '#000000',
-                        border: 'none'
-                      }}
-                      className="h-5"
-                    >
-                      {type.toLowerCase() === 'list[list[float]]' ? '2D Matrix' : type}
-                    </Badge>
-                  </div>
-                  {type.toLowerCase() === 'list[list[float]]' ? (
-                    <MatrixInput
-                      value={JSON.parse(inputs[param] || '[[0,0],[0,0]]')}
-                      onChange={(matrix) => handleInputChange(param, JSON.stringify(matrix))}
-                      allowRectangular={snippet.name === 'add_matrices'}
-                    />
-                  ) : type.toLowerCase() === 'bool' ? (
-                    <Switch
-                      checked={inputs[param] === 'true'}
-                      onCheckedChange={(checked) => handleInputChange(param, String(checked))}
+                <Button 
+                  onClick={isLoading ? handleAbort : executeSnippet} 
+                  className="w-full"
+                  variant={isLoading ? "destructive" : "default"}
+                  disabled={!snippet}
+                >
+                  {isLoading ? (
+                    <>
+                      <X className="h-4 w-4 mr-2" />
+                      Abort
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4 mr-2" />
+                      Execute
+                    </>
+                  )}
+                </Button>
+              </TabsContent>
+
+              <TabsContent value="code">
+                <div className="relative bg-muted rounded-lg">
+                  {isLoadingCode ? (
+                    <div className="p-4 text-center text-muted-foreground">
+                      Loading code...
+                    </div>
+                  ) : code ? (
+                    <CodeBlock 
+                      code={code}
+                      language="python"
+                      isExpanded={true}
                     />
                   ) : (
-                    <Input
-                      id={param}
-                      type={type === 'float' || type === 'int' ? 'number' : 'text'}
-                      value={inputs[param]}
-                      onChange={(e) => handleInputChange(param, e.target.value)}
-                      placeholder={`Enter ${param}`}
-                      step={type === 'float' ? '0.01' : '1'}
-                    />
+                    <div className="p-4 text-center text-muted-foreground">
+                      Failed to load code
+                    </div>
                   )}
                 </div>
-              ))}
-            </div>
-
-            <Button 
-              onClick={isLoading ? handleAbort : executeSnippet} 
-              className="w-full"
-              variant={isLoading ? "destructive" : "default"}
-              disabled={!snippet}
-            >
-              {isLoading ? (
-                <>
-                  <X className="h-4 w-4 mr-2" />
-                  Abort
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4 mr-2" />
-                  Execute
-                </>
-              )}
-            </Button>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
 

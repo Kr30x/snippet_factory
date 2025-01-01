@@ -38,35 +38,50 @@ export function SnippetCard({ name, description, endpoint, params, return_type }
             <div>
               <h3 className="text-sm font-medium mb-2">Inputs</h3>
               <div className="flex flex-wrap gap-2">
-                {Object.entries(params).map(([paramName, paramType]) => {
-                  const bgColor = stringToColor(paramType);
-                  return (
-                    <Badge
-                      key={`${paramName}-${paramType}`}
-                      style={{
-                        backgroundColor: bgColor,
-                        color: '#000000',
-                        border: 'none'
-                      }}
-                      className="w-fit px-2 py-1 text-xs"
-                    >
-                      {paramName}: {paramType.toLowerCase() === 'list[list[float]]' ? '2D Matrix' : paramType}
-                    </Badge>
-                  );
-                })}
+                {Object.keys(params).length === 0 ? (
+                  <Badge
+                    style={{
+                      backgroundColor: stringToColor('void'),
+                      color: '#000000',
+                      border: 'none'
+                    }}
+                    className="w-fit px-2 py-1 text-xs"
+                  >
+                    void
+                  </Badge>
+                ) : (
+                  Object.entries(params).map(([paramName, paramType]) => {
+                    const bgColor = stringToColor(paramType);
+                    return (
+                      <Badge
+                        key={`${paramName}-${paramType}`}
+                        style={{
+                          backgroundColor: bgColor,
+                          color: '#000000',
+                          border: 'none'
+                        }}
+                        className="w-fit px-2 py-1 text-xs"
+                      >
+                        {paramName}: {paramType.toLowerCase() === 'list[list[float]]' ? '2D Matrix' : paramType}
+                      </Badge>
+                    );
+                  })
+                )}
               </div>
             </div>
             <div>
               <h3 className="text-sm font-medium mb-2">Output</h3>
               <Badge 
                 style={{
-                  backgroundColor: stringToColor(return_type),
+                  backgroundColor: stringToColor(return_type || 'void'),
                   color: '#000000',
                   border: 'none'
                 }}
                 className="w-fit px-2 py-1 text-xs"
               >
-                {return_type.toLowerCase() === 'list[list[float]]' ? '2D Matrix' : return_type}
+                {return_type === '' ? 'void' : 
+                 return_type.toLowerCase() === 'list[list[float]]' ? '2D Matrix' : 
+                 return_type}
               </Badge>
             </div>
           </div>
